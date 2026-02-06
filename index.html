@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scratch and Win</title>
+
+    <style>
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+        }
+
+        /* --- Layout Container (Matches 728px Ad) --- */
+        #main-content { 
+            display: none; 
+            width: 100%; 
+            max-width: 728px; /* Forced to match the top Ad width */
+            box-sizing: border-box;
+        }
+
+        .ad-unit { 
+            margin: 15px 0; 
+            text-align: center; 
+            width: 100%; 
+            display: flex;
+            justify-content: center;
+        }
+        
+        .ad-grid-item {
+            grid-column: 1 / -1; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #fff;
+            border-radius: 12px;
+            min-height: 260px;
+            margin: 10px 0;
+            width: 100%;
+        }
+
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #1a1a1a; color: #fff;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; z-index: 1000; transition: opacity 0.5s;
+        }
+        #splash-screen.fade-out { opacity: 0; pointer-events: none; }
+
+        .top-bar { text-align: center; margin-bottom: 10px; }
+        
+        /* --- 2-Column Grid aligned to 728px --- */
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* 2 equal large cards */
+            gap: 12px; 
+            width: 100%;
+            padding: 0; /* Removed padding to stay flush with ad width */
+            box-sizing: border-box;
+        }
+
+        /* --- Large Rectangular Card --- */
+        .card {
+            background-color: #fff;
+            position: relative;
+            width: 100%; 
+            /* Increased height: Width is 1.6x the height for a premium feel */
+            aspect-ratio: 1.6 / 1; 
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+            border: 4px solid #FF9933;
+            box-sizing: border-box;
+        }
+        
+        .card-content {
+            position: absolute; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+            font-weight: bold; color: #333; text-align: center; padding: 15px;
+            box-sizing: border-box; font-size: 1.3em; /* Larger text for larger cards */
+        }
+        
+        canvas { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            z-index: 10; 
+            touch-action: pan-y; /* Added to allow vertical scrolling */
+        }
+        
+        button {
+            background-color: #f44336; color: white; border: none; padding: 12px 24px;
+            border-radius: 8px; cursor: pointer; font-size: 1em; margin: 10px;
+            font-weight: bold;
+        }
+
+        /* Handle smaller mobile screens */
+        @media (max-width: 740px) {
+            #main-content { width: 98vw; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="splash-screen"><h1>Loading Cards... 🤡</h1></div>
+
+    <div id="main-content">
+        <div class="ad-unit">
+            <script type="text/javascript">
+                atOptions = { 'key' : '78270b849cd90047eef8f35331c6e566', 'format' : 'iframe', 'height' : 90, 'width' : 728, 'params' : {} };
+            </script>
+            <script type="text/javascript" src="https://www.highperformanceformat.com/78270b849cd90047eef8f35331c6e566/invoke.js"></script>
+        </div>
+
+        <div class="top-bar">
+            <button onclick="location.reload()">Refresh Game</button>
+            <button id="play-again-btn" style="display:none;" onclick="location.reload()">Play Again</button>
+        </div>
+
+        <div class="container" id="card-grid"></div>
+
+        <div class="ad-unit">
+            <script type="text/javascript">
+                atOptions = { 'key' : '669b6f839569de60822ead4022875666', 'format' : 'iframe', 'height' : 60, 'width' : 468, 'params' : {} };
+            </script>
+            <script type="text/javascript" src="https://www.highperformanceformat.com/669b6f839569de60822ead4022875666/invoke.js"></script>
+        </div>
+    </div>
+
+    <script>
+        const words = ["गरीब", "कंजूस", "झूठा", "लालची", "डरपोक", "गद्दार", "चोर", "धोखेबाज़", "चालाक", "मतलबी", "बदमाश", "बिगड़ैल", "बेईमान", "कमजोर", "बेशर्म", "जिद्दी", "नालायक", "नफरती", "लापरवाह", "नीच", "फरेबी", "गंवार", "घमंडी", "हरामी", "सुअर", "भड़वा", "अनपढ़", "निकम्मा", "जानवर", "कुत्ता", "समझदार", "ईमानदार", "मेहनती", "होशियार", "नेक दिल", "रहम दिल", "बहादुर", "अच्छा इंसान", "सच्चा", "मददगार", "किस्मत वाला", "भरोसेमंद", "जिम्मेदार", "वफादार", "दोस्तों का दोस्त", "कामियाब", "खुशमिजाज", "इज्जतदार", "खूबसूरत", "दीनदार"];
+
+        function shuffle(a) {
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+        }
+        shuffle(words);
+
+        const grid = document.getElementById('card-grid');
+        let cardOpened = false;
+        let adCount = 0;
+
+        window.onload = () => {
+            setTimeout(() => {
+                document.getElementById('splash-screen').classList.add('fade-out');
+                document.getElementById('main-content').style.display = 'block';
+                initGame();
+            }, 1000);
+        };
+
+        function createAdFrame() {
+            if (adCount >= 5) return; 
+            adCount++;
+
+            const container = document.createElement('div');
+            container.className = 'ad-grid-item';
+            const ifrm = document.createElement('iframe');
+            ifrm.style.width = "300px";
+            ifrm.style.height = "250px";
+            ifrm.style.border = "none";
+            
+            const adHtml = `
+                <body style="margin:0;padding:0;display:flex;justify-content:center;align-items:center;">
+                    <script type="text/javascript">
+                        atOptions = { 'key' : '01573ba1114a7352ff5359ece6329e0f', 'format' : 'iframe', 'height' : 250, 'width' : 300, 'params' : {} };
+                    <\/script>
+                    <script type="text/javascript" src="https://www.highperformanceformat.com/01573ba1114a7352ff5359ece6329e0f/invoke.js"><\/script>
+                </body>`;
+            
+            container.appendChild(ifrm);
+            grid.appendChild(container);
+            
+            const doc = ifrm.contentWindow.document;
+            doc.open();
+            doc.write(adHtml);
+            doc.close();
+        }
+
+        function initGame() {
+            words.forEach((word, i) => {
+                if (i > 0 && i % 10 === 0) {
+                    createAdFrame();
+                }
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `<div class="card-content">${word}</div><canvas></canvas>`;
+                grid.appendChild(card);
+                setTimeout(() => setupCanvas(card.querySelector('canvas')), 50);
+            });
+        }
+
+        function setupCanvas(canvas) {
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const parent = canvas.parentElement;
+            canvas.width = parent.clientWidth;
+            canvas.height = parent.clientHeight;
+
+            ctx.fillStyle = '#b8b8b8';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#444';
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('SCRATCH HERE', canvas.width/2, canvas.height/2 + 5);
+
+            let painting = false;
+            let startX, startY;
+
+            const scratch = (e) => {
+                if (!painting || cardOpened) return;
+                
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+                // Scroll detection: if movement is mostly vertical, don't scratch
+                if (e.touches) {
+                    const dx = Math.abs(clientX - startX);
+                    const dy = Math.abs(clientY - startY);
+                    if (dy > dx && dy > 10) { 
+                        painting = false; 
+                        return; 
+                    }
+                    if (e.cancelable) e.preventDefault();
+                }
+
+                const r = canvas.getBoundingClientRect();
+                const x = (clientX - r.left) * (canvas.width / r.width);
+                const y = (clientY - r.top) * (canvas.height / r.height);
+
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.beginPath();
+                ctx.arc(x, y, 22, 0, Math.PI * 2);
+                ctx.fill();
+            };
+
+            const done = () => {
+                if (!painting) return;
+                painting = false;
+                const data = ctx.getImageData(0,0,canvas.width,canvas.height).data;
+                let count = 0;
+                for(let i=3; i<data.length; i+=4) if(data[i]===0) count++;
+                if(count > (data.length / 4) * 0.4) { 
+                    canvas.style.display = 'none';
+                    cardOpened = true;
+                    document.getElementById('play-again-btn').style.display = 'inline-block';
+                }
+            };
+
+            canvas.addEventListener('mousedown', (e) => { painting = true; });
+            canvas.addEventListener('touchstart', (e) => { 
+                painting = true; 
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            }, {passive: true});
+
+            window.addEventListener('mousemove', scratch);
+            window.addEventListener('touchmove', scratch, {passive: false});
+            window.addEventListener('mouseup', done);
+            window.addEventListener('touchend', done);
+        }
+    </script>
+</body>
+</html>
